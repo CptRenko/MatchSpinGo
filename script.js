@@ -47,7 +47,10 @@ async function OnBeforeProjectStart(runtime)
 	
 	for(let i = 0; i < layouts.length; i++)
 	{
-		layouts[i].addEventListener("afterlayoutstart", () => Setear(runtime));
+		if(layouts[i].name === "Layout 1" || layouts[i].name === "Layout 2")
+		{
+			layouts[i].addEventListener("afterlayoutstart", () => Setear(runtime));
+		}
 	}
 	
 	//textoPuente.text = "No hay colision";
@@ -96,134 +99,139 @@ async function Tick(runtime)
 	let pj = runtime.objects.Personaje.getFirstInstance();
 	let deltaTime = runtime.dt;
 	
-	//Necesito comprobar si hay algun bloque rotandose, para no activar porque hay dramas con las colision
-	for(let l = 0; l < t.length; l++)
+	//Evitamos ejecutar el codigo -y por lo tanto errores everywhere-, por ejemplo, en Main menu que no tiene instancias de terrenos. 
+	if(typeof t !== "undefined")
 	{
-		if(t[l].instVars.rotating)
+		//Necesito comprobar si hay algun bloque rotandose, para no activar porque hay dramas con las colision
+		for(let l = 0; l < t.length; l++)
 		{
-			start = false;
-			break;
-		}
-		else
-		{
-			start = true;
-		}
-	}
-	
-	//Necesito determinar el indice del cuadrante en el que esta el jugador actual
-	if(start)
-	{
-		contadorColision = 0;
-		for(let j = 0; j < t.length; j++)
-		{
-			if(t[j].uid === parseInt(cuadrante))
+			if(t[l].instVars.rotating)
 			{
-				indice = j;
-				break;
-			}
-			
-			//console.log(t[j].instVars.rotating);
-		}
-		
-		//Determinado el indice, comprobamos con cuantos puente colisiona el de este bloque.
-		//Y guardamos el indice del bloque colindante (que es = a la loza).
-		for(let k = 0; k < t.length; k++)
-		{
-			if(t[indice].getChildAt(0).testOverlap(t[k].getChildAt(0)))
-			{
-				console.log("Overlap");
-				contadorColision++;
-				indiceColindante = k;
-				isMoving = false;
 				start = false;
 				break;
 			}
-			
+			else
+			{
+				start = true;
+			}
 		}
-	}
-	
-
-	//Hotfix: Si el angulo del bloque se ha movido, entonces anulamos el bloqueo del cuadrante anterior. Evitamos que el jugador se quede atrapado en algun escenario
-	if(angulo != t[indice].angle)
-	{
-		cuadranteAnterior = -1;
-	}
-	
-	//Solo se va a mover el PJ cuando:
-	// - Hay mas de 1 colision
-	// - El bloque a mover no sea el mismo del cual se movio, A MENOS QUE, el bloque anterior se haya movido de su angulo
-	// - HOTFIX: No haya ningun bloque en estado de rotación
-	if(contadorColision > 0 && !isMoving && t[indiceColindante].uid != cuadranteAnterior && !t[indice].instVars.rotating)
-	{
-		if(contadorColision == 1)
+		
+		//Necesito determinar el indice del cuadrante en el que esta el jugador actual
+		if(start)
 		{
-			pos.x = t[indiceColindante].x;
-			pos.y = t[indiceColindante].y;
-			
-			let pMove = 0; //¿Cuanto vamos a mover el PJ?
-			
-			if(parseInt(pj.x) === parseInt(pos.x))
+			contadorColision = 0;
+			for(let j = 0; j < t.length; j++)
 			{
-				moveTo = "Y";
+				if(t[j].uid === parseInt(cuadrante))
+				{
+					indice = j;
+					break;
+				}
+
+				//console.log(t[j].instVars.rotating);
 			}
-			else if(parseInt(pj.y) === parseInt(pos.y))
+
+			//Determinado el indice, comprobamos con cuantos puente colisiona el de este bloque.
+			//Y guardamos el indice del bloque colindante (que es = a la loza).
+			for(let k = 0; k < t.length; k++)
 			{
-				moveTo = "X";
+				if(t[indice].getChildAt(0).testOverlap(t[k].getChildAt(0)))
+				{
+					console.log("Overlap");
+					contadorColision++;
+					indiceColindante = k;
+					isMoving = false;
+					start = false;
+					break;
+				}
+
 			}
-			
-			//Determinamos cuanto debemos mover y lo agregamos al array
-			
-			if(moveTo ==="X")
+		}
+
+
+		//Hotfix: Si el angulo del bloque se ha movido, entonces anulamos el bloqueo del cuadrante anterior. Evitamos que el jugador se quede atrapado en algun escenario
+		//Hotfix 2: Verificamos que angle no sea indefinido (por ejemplo, si estamos en el menu principal)
+		if(angulo != t[indice].angle)
+		{
+			cuadranteAnterior = -1;
+		}
+
+		//Solo se va a mover el PJ cuando:
+		// - Hay mas de 1 colision
+		// - El bloque a mover no sea el mismo del cual se movio, A MENOS QUE, el bloque anterior se haya movido de su angulo
+		// - HOTFIX: No haya ningun bloque en estado de rotación
+		if(contadorColision > 0 && !isMoving && t[indiceColindante].uid != cuadranteAnterior && !t[indice].instVars.rotating)
+		{
+			if(contadorColision == 1)
 			{
-				pMove = pos.x - pj.x;
-				positions.push(pMove);
+				pos.x = t[indiceColindante].x;
+				pos.y = t[indiceColindante].y;
+
+				let pMove = 0; //¿Cuanto vamos a mover el PJ?
+
+				if(parseInt(pj.x) === parseInt(pos.x))
+				{
+					moveTo = "Y";
+				}
+				else if(parseInt(pj.y) === parseInt(pos.y))
+				{
+					moveTo = "X";
+				}
+
+				//Determinamos cuanto debemos mover y lo agregamos al array
+
+				if(moveTo ==="X")
+				{
+					pMove = pos.x - pj.x;
+					positions.push(pMove);
+				}
+				else if(moveTo === "Y")
+				{
+					pMove = pos.y - pj.y;
+					positions.push(pMove);
+
+				}
+				cuadranteAnterior = cuadrante;
+				isMoving = true;
+			}
+		}
+
+		do
+		{
+			//@TODO: Agregar delta time
+			if(moveTo === "X")
+			{
+				pj.x += positions[0];
 			}
 			else if(moveTo === "Y")
 			{
-				pMove = pos.y - pj.y;
-				positions.push(pMove);
-				
+				pj.y += positions[0];
 			}
-			cuadranteAnterior = cuadrante;
-			isMoving = true;
-		}
-	}
-	
-	do
-	{
-		//@TODO: Agregar delta time
-		if(moveTo === "X")
-		{
-			pj.x += positions[0];
-		}
-		else if(moveTo === "Y")
-		{
-			pj.y += positions[0];
-		}
-		
-		//Determinamos si esta en el centro, O, dentro de un threshold determinado
-		if((parseInt(pos.x) === parseInt(pj.x) && parseInt(pos.y) === parseInt(pj.y) && isMoving))
-		{
-			console.log("Moviendose");
-			isMoving = false;
-			positions.shift();
-			
-			start = true;
-		
-			//Detectamos en que cuadrante esta el personaje.
-			for(let k = 0; k < t.length; k++)
-			{
-				pos.x = t[k].x;
-				pos.y = t[k].y;
 
-				if(parseInt(pos.x) === parseInt(pj.x) && parseInt(pos.y) === parseInt(pj.y))
+			//Determinamos si esta en el centro, O, dentro de un threshold determinado
+			if((parseInt(pos.x) === parseInt(pj.x) && parseInt(pos.y) === parseInt(pj.y) && isMoving))
+			{
+				console.log("Moviendose");
+				isMoving = false;
+				positions.shift();
+
+				start = true;
+
+				//Detectamos en que cuadrante esta el personaje.
+				for(let k = 0; k < t.length; k++)
 				{
-					cuadrante = t[k].uid;
-					angulo = t[k].angle;
-					break;
+					pos.x = t[k].x;
+					pos.y = t[k].y;
+
+					if(parseInt(pos.x) === parseInt(pj.x) && parseInt(pos.y) === parseInt(pj.y))
+					{
+						cuadrante = t[k].uid;
+						angulo = t[k].angle;
+						break;
+					}
 				}
 			}
 		}
+		while(isMoving);
 	}
-	while(isMoving);
 }
